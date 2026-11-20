@@ -1,0 +1,33 @@
+name: rabbitmq-charmed
+base: ubuntu@26.04
+version: '4.0.5'
+summary: RabbitMQ message broker packaged from the Ubuntu deb
+description: |
+    This is a rock that bundles RabbitMQ together with other tools of its ecosystem in order to be used in Charmed Operators, providing automated operations management from day 0 to day 2 on the RabbitMQ message broker, on top of a Virtual Machine cluster and K8s cluster. It is an open source, end-to-end, production ready data platform on top of cloud native technologies.
+
+platforms:
+    amd64:
+
+run-user: _daemon_
+
+environment:
+    PATH: /usr/lib/rabbitmq/bin:/usr/lib/erlang/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    HOME: /var/lib/rabbitmq
+
+services:
+    rabbitmq-server:
+        override: replace
+        startup: enabled
+        summary: Start RabbitMQ server
+        command: /usr/lib/rabbitmq/bin/rabbitmq-server
+
+parts:
+    rabbitmq:
+        plugin: nil
+        stage-packages:
+            - rabbitmq-server
+        override-prime: |
+            craftctl default
+            mkdir -p etc/rabbitmq/conf.d var/lib/rabbitmq/mnesia var/log/rabbitmq
+            chown -R 584792:584792 etc/rabbitmq var/lib/rabbitmq var/log/rabbitmq
+            chmod -R 750 etc/rabbitmq var/lib/rabbitmq var/log/rabbitmq
