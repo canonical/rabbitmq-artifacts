@@ -1,0 +1,33 @@
+summary: RabbitMQ snap management plugin and message round-trip
+
+execute: |
+  api=http://localhost:15672/api
+
+  echo "Enabling the management plugin..."
+  rabbitmq-charmed.plugins enable rabbitmq_management
+  grep -q rabbitmq_management /var/snap/rabbitmq-charmed/current/etc/rabbitmq/enabled_plugins
+
+  retry=0
+  until curl -sf -u guest:guest "$api/overview" >/dev/null 2>&1; do
+    retry=$((retry + 1))
+    if [ $retry -ge 30 ]; then
+      echo "RabbitMQ management API did not become ready in time"
+      snap logs -n 100 rabbitmq-charmed.server || true
+      exit 1
+    fi
+    sleep 2
+  done
+
+  echo "Publishing and consuming a message through the HTTP API..."
+  curl -sf -u guest:guest -X PUT -H 'content-type: application/json' \
+    "$api/queues/%2F/spread-queue" -d '{"durable": false}'
+
+  curl -sf -u guest:guest -X POST -H 'content-type: application/json' \
+    "$api/exchanges/%2F/amq.default/publish" \
+    -d '{"properties": {}, "routing_key": "spread-queue", "payload": "hello-spread", "payload_encoding": "string"}' \
+    | grep -q '"routed":true'
+
+  curl -sf -u guest:guest -X POST -H 'content-type: application/json' \
+    "$api/queues/%2F/spread-queue/get" \
+    -d '{"count": 1, "ackmode": "ack_requeue_false", "encoding": "auto"}' \
+    | grep -q '"payload":"hello-spread"'

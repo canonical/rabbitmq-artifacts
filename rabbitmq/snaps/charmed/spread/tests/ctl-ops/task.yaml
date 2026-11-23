@@ -1,0 +1,16 @@
+summary: RabbitMQ snap CLI operations against the running broker
+
+execute: |
+  echo "Managing vhosts, users and permissions..."
+  rabbitmq-charmed.ctl add_vhost spread-vhost
+  rabbitmq-charmed.ctl add_user spread-user spread-pass
+  rabbitmq-charmed.ctl set_permissions -p spread-vhost spread-user '.*' '.*' '.*'
+
+  rabbitmq-charmed.ctl list_vhosts --silent | grep -qx spread-vhost
+  rabbitmq-charmed.ctl list_users --silent | grep -q '^spread-user'
+  rabbitmq-charmed.ctl list_permissions -p spread-vhost --silent | grep -q '^spread-user'
+  rabbitmq-charmed.ctl authenticate_user spread-user spread-pass
+
+  echo "Running the queues and upgrade tools..."
+  rabbitmq-charmed.queues check_if_node_is_quorum_critical
+  rabbitmq-charmed.upgrade await_online_quorum_plus_one -t 10
