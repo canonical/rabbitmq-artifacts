@@ -1,0 +1,118 @@
+name: rabbitmq-charmed
+base: core26
+version: '4.0.5'
+summary: RabbitMQ message broker packaged from the Ubuntu deb
+description: |
+  This is a snap that bundles RabbitMQ together with other tools of its ecosystem in order to be used in Charmed Operators, providing automated operations management from day 0 to day 2 on the RabbitMQ message broker, on top of a Virtual Machine cluster and K8s cluster. It is an open source, end-to-end, production ready data platform on top of cloud native technologies.
+
+grade: stable
+confinement: strict
+
+system-usernames:
+  _daemon_: shared
+
+slots:
+  rabbitmq-logs:
+    interface: content
+    content: logs
+    source:
+      read:
+        - $SNAP_COMMON/var/log/rabbitmq
+
+environment:
+  # Like the deb's rabbitmq user, HOME is the data dir and holds the erlang cookie.
+  HOME: $SNAP_COMMON/var/lib/rabbitmq
+  RABBITMQ_CONFIG_FILE: $SNAP_DATA/etc/rabbitmq/rabbitmq
+  RABBITMQ_CONFIG_FILES: $SNAP_DATA/etc/rabbitmq/conf.d
+  RABBITMQ_ADVANCED_CONFIG_FILE: $SNAP_DATA/etc/rabbitmq/advanced.config
+  RABBITMQ_CONF_ENV_FILE: $SNAP_DATA/etc/rabbitmq/rabbitmq-env.conf
+  RABBITMQ_ENABLED_PLUGINS_FILE: $SNAP_DATA/etc/rabbitmq/enabled_plugins
+  RABBITMQ_MOTD_FILE: $SNAP_DATA/etc/rabbitmq/motd
+  RABBITMQ_MNESIA_BASE: $SNAP_COMMON/var/lib/rabbitmq/mnesia
+  RABBITMQ_LOG_BASE: $SNAP_COMMON/var/log/rabbitmq
+  ERL_CRASH_DUMP: $SNAP_COMMON/var/log/rabbitmq/erl_crash.dump
+
+apps:
+  server:
+    command: opt/rabbitmq/bin/launch.sh
+    daemon: simple
+    install-mode: disable
+    restart-condition: always
+    restart-delay: 20s
+    plugs:
+      - network
+      - network-bind
+      - mount-observe
+  ctl:
+    command: opt/rabbitmq/bin/cli-wrapper.sh
+    environment:
+      bin_script: rabbitmqctl
+    plugs:
+      - network
+      - network-bind
+  plugins:
+    command: opt/rabbitmq/bin/cli-wrapper.sh
+    environment:
+      bin_script: rabbitmq-plugins
+    plugs:
+      - network
+      - network-bind
+  diagnostics:
+    command: opt/rabbitmq/bin/cli-wrapper.sh
+    environment:
+      bin_script: rabbitmq-diagnostics
+    plugs:
+      - network
+      - network-bind
+  queues:
+    command: opt/rabbitmq/bin/cli-wrapper.sh
+    environment:
+      bin_script: rabbitmq-queues
+    plugs:
+      - network
+      - network-bind
+  streams:
+    command: opt/rabbitmq/bin/cli-wrapper.sh
+    environment:
+      bin_script: rabbitmq-streams
+    plugs:
+      - network
+      - network-bind
+  upgrade:
+    command: opt/rabbitmq/bin/cli-wrapper.sh
+    environment:
+      bin_script: rabbitmq-upgrade
+    plugs:
+      - network
+      - network-bind
+
+parts:
+  rabbit:
+    plugin: nil
+    stage-packages:
+      - rabbitmq-server
+      - util-linux
+    override-build: |
+      craftctl default
+    override-prime: |
+      craftctl default
+      # Erlang scripts hardcode /usr/lib/erlang; point them into the snap.
+      for f in usr/lib/erlang/bin/erl usr/lib/erlang/bin/start \
+               usr/lib/erlang/erts-*/bin/erl usr/lib/erlang/erts-*/bin/start; do
+        [ -f "$f" ] && sed -i -E 's|^([[:space:]]*ROOTDIR=)"?/usr/lib/erlang"?$|\1"$SNAP/usr/lib/erlang"|' "$f"
+      done
+      true
+
+  # The disk monitor runs `df`, strict confinement forbids executing the base's df
+  df:
+    plugin: nil
+    stage-packages:
+      - gnu-coreutils
+    organize:
+      usr/bin/gnudf: usr/bin/df
+    prime:
+      - usr/bin/df
+
+  local:
+    plugin: dump
+    source: snap/local
