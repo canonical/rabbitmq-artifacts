@@ -1,0 +1,27 @@
+#!/bin/sh
+# Creates the writable layout; the charm provides the config.
+#
+# '584792' is the _daemon_ user and group.
+
+set -eux
+
+CONF="$SNAP_DATA/etc/rabbitmq"
+LOGS="$SNAP_COMMON/var/log/rabbitmq"
+DATA="$SNAP_COMMON/var/lib/rabbitmq"
+
+COOKIE="$DATA/.erlang.cookie"
+
+mkdir -p "$CONF/conf.d" "$LOGS" "$DATA/mnesia"
+
+# Placeholder cookie, replaced by the charm with the cluster-wide one. Created
+# here because Erlang's file:change_mode also calls chown(path, -1, -1), which
+# the snap seccomp filter denies, leaving a self-generated cookie at 0644.
+if [ ! -e "$COOKIE" ]; then
+    tr -dc 'A-Z' < /dev/urandom | head -c 20 > "$COOKIE"
+fi
+
+chmod 770 "$CONF" "$CONF/conf.d" "$LOGS"
+chmod 750 "$DATA" "$DATA/mnesia"
+chmod 400 "$COOKIE"
+
+chown 584792:root "$CONF" "$CONF/conf.d" "$LOGS" "$DATA" "$DATA/mnesia" "$COOKIE"
