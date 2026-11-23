@@ -1,0 +1,15 @@
+summary: RabbitMQ snap runs as _daemon_ with a private cookie
+
+execute: |
+  daemon_uid=584792
+
+  echo "Checking the broker runs as _daemon_..."
+  ps -o uid= -C beam.smp | grep -qw "$daemon_uid"
+  ! ps -o uid= -C beam.smp | grep -qw 0
+
+  echo "Checking the erlang cookie is owner-only..."
+  cookie=/var/snap/rabbitmq-charmed/common/var/lib/rabbitmq/.erlang.cookie
+  [ "$(stat -c '%a %u' "$cookie")" = "400 $daemon_uid" ]
+
+  echo "Checking the CLI works as root from a dir _daemon_ cannot enter..."
+  (cd /root && rabbitmq-charmed.ctl status)

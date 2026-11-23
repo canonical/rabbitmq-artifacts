@@ -1,0 +1,15 @@
+summary: RabbitMQ snap smoke test
+
+execute: |
+  echo "Running smoke test..."
+  rabbitmq-charmed.diagnostics status
+
+  snap_version=$(snap list rabbitmq-charmed | awk 'NR==2 {print $2}')
+  server_version=$(rabbitmq-charmed.ctl version)
+  echo "snap: $snap_version, server: $server_version"
+  [ "$server_version" = "$snap_version" ]
+
+  # Disk monitor relies on the bundled df and mount-observe
+  rabbitmq-charmed.diagnostics check_local_alarms
+
+  snap connections rabbitmq-charmed | grep -q 'rabbitmq-charmed:rabbitmq-logs'

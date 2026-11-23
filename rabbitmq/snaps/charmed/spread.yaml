@@ -1,0 +1,34 @@
+project: rabbitmq-charmed-snap
+
+backends:
+  craft:
+    type: craft
+    systems:
+      - ubuntu-26.04
+
+suites:
+  spread/tests/:
+    summary: General integration tests
+    prepare: |
+      apt-get purge -y 'rabbitmq-server*' || true
+    prepare-each: |
+      snap install "$CRAFT_ARTIFACT" --dangerous
+      snap connect rabbitmq-charmed:mount-observe
+      snap start rabbitmq-charmed.server
+      retry=0
+      until rabbitmq-charmed.diagnostics ping >/dev/null 2>&1; do
+        retry=$((retry + 1))
+        if [ $retry -ge 60 ]; then
+          echo "RabbitMQ server did not become ready in time"
+          snap logs -n 100 rabbitmq-charmed.server || true
+          exit 1
+        fi
+        sleep 2
+      done
+    restore-each: |
+      snap remove rabbitmq-charmed --purge --terminate
+
+exclude:
+  - .git
+
+kill-timeout: 1h
