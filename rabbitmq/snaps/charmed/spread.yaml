@@ -16,7 +16,7 @@ suites:
       snap connect rabbitmq-charmed:mount-observe
       snap start rabbitmq-charmed.server
       retry=0
-      until rabbitmq-charmed.diagnostics ping >/dev/null 2>&1; do
+      until rabbitmq-charmed.diagnostics check_running >/dev/null 2>&1; do
         retry=$((retry + 1))
         if [ $retry -ge 60 ]; then
           echo "RabbitMQ server did not become ready in time"
